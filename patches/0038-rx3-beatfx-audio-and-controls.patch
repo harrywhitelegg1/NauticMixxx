@@ -369,8 +369,9 @@ diff --git a/src/widget/weffectselector.cpp b/src/widget/weffectselector.cpp
 diff --git a/src/widget/rx3beatfxeffects.h b/src/widget/rx3beatfxeffects.h
 --- a/src/widget/rx3beatfxeffects.h
 +++ b/src/widget/rx3beatfxeffects.h
-@@ -2,6 +2,10 @@
+@@ -2,6 +2,11 @@
  
++#include "control/controlobject.h"
  #include "effects/backends/effectsbackendmanager.h"
  #include "effects/backends/effectmanifest.h"
 +#include "effects/effectslot.h"
@@ -380,7 +381,7 @@ diff --git a/src/widget/rx3beatfxeffects.h b/src/widget/rx3beatfxeffects.h
  
  // A performance-oriented subset of the actual built-in processors. Do not
  // expose utility/EQ processors here or invent names for missing RX3 algorithms.
-@@ -22,3 +26,62 @@
+@@ -22,3 +27,62 @@
          if (isRx3BeatFx(manifest)) result.append(manifest);
      return result;
  }
