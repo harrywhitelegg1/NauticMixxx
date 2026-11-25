@@ -47,7 +47,9 @@ cmake -S "$source_tree" -B "$work/native" -G Ninja \
 cmake --build "$work/native" --target mixxx --parallel "$jobs"
 if [ "$tests" = ON ]; then
   cmake --build "$work/native" --target mixxx-test --parallel "$jobs"
-  (cd "$source_tree" && QT_QPA_PLATFORM=offscreen NAUTIC_RX3_STYLESHEET="$project/skins/XDJ_RX3_Mixxx/style.qss" "$work/native/mixxx-test" \
+  skin_dir="$project/skins/XDJ_RX3_Mixxx"
+  (cd "$source_tree" && QT_QPA_PLATFORM=offscreen NAUTIC_SKIN_DIR="$skin_dir" \
+    NAUTIC_RX3_STYLESHEET="$skin_dir/style.qss" "$work/native/mixxx-test" \
     --gtest_filter='StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:LibraryTableViewStateTest.*:Rx3*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*' \
     --gtest_output="xml:$work/rx3-tests.xml")
 fi

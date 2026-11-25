@@ -61,13 +61,14 @@ diff --git a/src/engine/channels/rx3microphonetone.h b/src/engine/channels/rx3mi
 new file mode 100644
 --- /dev/null
 +++ b/src/engine/channels/rx3microphonetone.h
-@@ -0,0 +1,105 @@
+@@ -0,0 +1,106 @@
 +#pragma once
 +
 +#include <algorithm>
 +#include <array>
 +#include <cmath>
 +
++#include "util/fpclassify.h"
 +#include "util/types.h"
 +
 +namespace rx3 {
@@ -83,7 +84,7 @@ new file mode 100644
 +
 +    void process(CSAMPLE* samples, int sampleCount, double sampleRate,
 +            double lowDb, double highDb, bool lowCut) {
-+        if (!samples || sampleCount <= 0 || !std::isfinite(sampleRate) || sampleRate < 8000) {
++        if (!samples || sampleCount <= 0 || !util_isfinite(sampleRate) || sampleRate < 8000) {
 +            return;
 +        }
 +        if (sampleRate != m_sampleRate) {
@@ -130,7 +131,7 @@ new file mode 100644
 +        }
 +    };
 +    static double boundedGain(double gain) {
-+        return std::isfinite(gain) ? std::clamp(gain, -12.0, 12.0) : 0;
++        return util_isfinite(gain) ? std::clamp(gain, -12.0, 12.0) : 0;
 +    }
 +    static Biquad shelf(double rate, double frequency, double gain, bool high) {
 +        if (gain == 0) return {};
@@ -2186,7 +2187,7 @@ diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
      QCoreApplication::processEvents();
      OverviewPaintCounter counter; overview.installEventFilter(&counter);
      QTest::qWait(600);
-@@ -1923,3 +1933,218 @@
+@@ -1923,3 +1933,243 @@
      QTest::qWait(300); EXPECT_EQ(0, counter.paints);
      factory->setEndOfTrackWarningTime(originalWarning);
  }
@@ -2293,6 +2294,7 @@ diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
 +}
 +
 +#include "engine/channels/rx3microphonetone.h"
++#include "util/fpclassify.h"
 +#include <cmath>
 +#include <limits>
 +
@@ -2314,7 +2316,7 @@ diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
 +    EXPECT_EQ(original,signal);
 +    tone.process(signal.data(),int(signal.size()),48000,12,-12,true);
 +    for(size_t sample=0;sample<signal.size();sample+=2) {
-+        EXPECT_TRUE(std::isfinite(signal[sample]));EXPECT_FLOAT_EQ(0,signal[sample+1]);
++        EXPECT_TRUE(util_isfinite(static_cast<double>(signal[sample])));EXPECT_FLOAT_EQ(0,signal[sample+1]);
 +    }
 +}
 +TEST(Rx3MicrophoneTone, ShelvesBoostAndCutEachBandAcrossSampleRates) {
@@ -2333,12 +2335,36 @@ diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
 +    for(auto sample:signal) EXPECT_FLOAT_EQ(0,sample);
 +}
 +TEST(Rx3MicrophoneTone, SmoothingIsIndependentOfCallbackSizeAndInvalidGainIsSafe) {
-+    auto whole=rx3MicSine(48000,4000,4800);auto split=whole;
-+    rx3::MicrophoneTone a,b;a.process(whole.data(),int(whole.size()),48000,-12,12,true);
-+    for(size_t offset=0;offset<split.size();offset+=128) b.process(split.data()+offset,int(std::min(size_t(128),split.size()-offset)),48000,-12,12,true);
-+    EXPECT_EQ(whole,split);
-+    a.process(whole.data(),int(whole.size()),48000,std::numeric_limits<double>::infinity(),std::numeric_limits<double>::quiet_NaN(),false);
-+    for(auto sample:whole) EXPECT_TRUE(std::isfinite(sample));
++    constexpr int kSampleRate = 48000;
++    const auto input = rx3MicSine(kSampleRate, 4000, 4800);
++    auto whole = input;
++    rx3::MicrophoneTone wholeTone;
++    wholeTone.process(whole.data(), static_cast<int>(whole.size()), kSampleRate, -12, 12, true);
++
++    // Exercise callbacks aligned to the 32-frame coefficient update and callbacks that cross it.
++    for (int framesPerCallback : {64, 37}) {
++        const size_t samplesPerCallback = 2 * framesPerCallback;
++        auto split = input;
++        rx3::MicrophoneTone splitTone;
++        for (size_t offset = 0; offset < split.size(); offset += samplesPerCallback) {
++            const size_t count = std::min(samplesPerCallback, split.size() - offset);
++            splitTone.process(split.data() + offset, static_cast<int>(count), kSampleRate, -12, 12, true);
++        }
++        // Allow one float rounding step at full scale, including near zero crossings.
++        for (size_t i = 0; i < whole.size(); ++i) {
++            ASSERT_NEAR(whole[i], split[i], std::numeric_limits<CSAMPLE>::epsilon())
++                    << "sample " << i << ", frames per callback " << framesPerCallback;
++        }
++    }
++
++    wholeTone.reset();
++    whole = input;
++    wholeTone.process(whole.data(), static_cast<int>(whole.size()), kSampleRate,
++            util_double_infinity(), util_double_nan(), false);
++    for (size_t i = 0; i < whole.size(); ++i) {
++        ASSERT_TRUE(util_isfinite(static_cast<double>(whole[i]))) << "sample " << i;
++        ASSERT_EQ(input[i], whole[i]) << "sample " << i;
++    }
 +}
 +
 +TEST(Rx3MySettings, MicrophoneLowCutRoundTripsWithoutChangingOtherMixerSettings) {

@@ -1471,7 +1471,8 @@ diff --git a/src/widget/wrx3deckbadge.h b/src/widget/wrx3deckbadge.h
 -    font.setBold(true);
 +    font.setBold(false);
      painter->setFont(font);
-     painter->drawText(QRectF(0, 13, 92, 31), Qt::AlignCenter, QString::number(deck));
+-    painter->drawText(QRectF(0, 13, 92, 31), Qt::AlignCenter, QString::number(deck));
++    painter->drawText(QRectF(0, 12, 92, 31), Qt::AlignCenter, QString::number(deck));
      painter->setPen(QPen(QColor("#F84418"), 1.4, Qt::SolidLine, Qt::RoundCap));
 diff --git a/src/widget/wrx3performancewidgets.h b/src/widget/wrx3performancewidgets.h
 --- a/src/widget/wrx3performancewidgets.h
